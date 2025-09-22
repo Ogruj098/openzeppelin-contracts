@@ -1,15 +1,25 @@
 // SPDX-License-Identifier: MIT
+// OpenZeppelin Contracts (last updated v5.4.0) (account/extensions/draft-AccountERC7579.sol)
 
 pragma solidity ^0.8.26;
 
 import {PackedUserOperation} from "../../interfaces/draft-IERC4337.sol";
 import {IERC1271} from "../../interfaces/IERC1271.sol";
-import {IERC7579Module, IERC7579Validator, IERC7579Execution, IERC7579AccountConfig, IERC7579ModuleConfig, MODULE_TYPE_VALIDATOR, MODULE_TYPE_EXECUTOR, MODULE_TYPE_FALLBACK} from "../../interfaces/draft-IERC7579.sol";
+import {
+    IERC7579Module,
+    IERC7579Validator,
+    IERC7579Execution,
+    IERC7579AccountConfig,
+    IERC7579ModuleConfig,
+    MODULE_TYPE_VALIDATOR,
+    MODULE_TYPE_EXECUTOR,
+    MODULE_TYPE_FALLBACK
+} from "../../interfaces/draft-IERC7579.sol";
 import {ERC7579Utils, Mode, CallType, ExecType} from "../../account/utils/draft-ERC7579Utils.sol";
 import {EnumerableSet} from "../../utils/structs/EnumerableSet.sol";
+import {LowLevelCall} from "../../utils/LowLevelCall.sol";
 import {Bytes} from "../../utils/Bytes.sol";
 import {Packing} from "../../utils/Packing.sol";
-import {Address} from "../../utils/Address.sol";
 import {Calldata} from "../../utils/Calldata.sol";
 import {Account} from "../Account.sol";
 
@@ -228,11 +238,11 @@ abstract contract AccountERC7579 is Account, IERC1271, IERC7579Execution, IERC75
      *
      * Requirements:
      *
-     * * Module type must be supported. See {supportsModule}. Reverts with {ERC7579UnsupportedModuleType}.
-     * * Module must be of the given type. Reverts with {ERC7579MismatchedModuleTypeId}.
-     * * Module must not be already installed. Reverts with {ERC7579AlreadyInstalledModule}.
+     * * Module type must be supported. See {supportsModule}. Reverts with {ERC7579Utils-ERC7579UnsupportedModuleType}.
+     * * Module must be of the given type. Reverts with {ERC7579Utils-ERC7579MismatchedModuleTypeId}.
+     * * Module must not be already installed. Reverts with {ERC7579Utils-ERC7579AlreadyInstalledModule}.
      *
-     * Emits a {ModuleInstalled} event.
+     * Emits a {IERC7579ModuleConfig-ModuleInstalled} event.
      */
     function _installModule(uint256 moduleTypeId, address module, bytes memory initData) internal virtual {
         require(supportsModule(moduleTypeId), ERC7579Utils.ERC7579UnsupportedModuleType(moduleTypeId));
@@ -267,7 +277,7 @@ abstract contract AccountERC7579 is Account, IERC1271, IERC7579Execution, IERC75
      *
      * Requirements:
      *
-     * * Module must be already installed. Reverts with {ERC7579UninstalledModule} otherwise.
+     * * Module must be already installed. Reverts with {ERC7579Utils-ERC7579UninstalledModule} otherwise.
      */
     function _uninstallModule(uint256 moduleTypeId, address module, bytes memory deInitData) internal virtual {
         require(supportsModule(moduleTypeId), ERC7579Utils.ERC7579UnsupportedModuleType(moduleTypeId));
@@ -305,14 +315,10 @@ abstract contract AccountERC7579 is Account, IERC1271, IERC7579Execution, IERC75
         // From https://eips.ethereum.org/EIPS/eip-7579#fallback[ERC-7579 specifications]:
         // - MUST utilize ERC-2771 to add the original msg.sender to the calldata sent to the fallback handler
         // - MUST use call to invoke the fallback handler
-        (bool success, bytes memory returndata) = handler.call{value: msg.value}(
-            abi.encodePacked(msg.data, msg.sender)
-        );
-
-        if (success) return returndata;
-
-        assembly ("memory-safe") {
-            revert(add(returndata, 0x20), mload(returndata))
+        if (LowLevelCall.callNoReturn(handler, msg.value, abi.encodePacked(msg.data, msg.sender))) {
+            return LowLevelCall.returnData();
+        } else {
+            LowLevelCall.bubbleRevert();
         }
     }
 

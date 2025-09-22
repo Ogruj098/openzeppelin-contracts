@@ -73,7 +73,7 @@ IMPORTANT: The P256 library only allows for `s` values in the lower order of the
 
 ==== RSA
 
-RSA is a public-key cryptosystem that was popularized by corporate and governmental public key infrastructures (https://en.wikipedia.org/wiki/Public_key_infrastructure[PKIs]) and https://en.wikipedia.org/wiki/Domain_Name_System_Security_Extensions[DNSSEC]. 
+RSA is a public-key cryptosystem that was popularized by corporate and governmental public key infrastructures (https://en.wikipedia.org/wiki/Public_key_infrastructure[PKIs]) and https://en.wikipedia.org/wiki/Domain_Name_System_Security_Extensions[DNSSEC].
 
 This cryptosystem consists of using a private key that's the product of 2 large prime numbers. The message is signed by applying a modular exponentiation to its hash (commonly SHA256), where both the exponent and modulus compose the public key of the signer.
 
@@ -99,7 +99,7 @@ IMPORTANT: Always use keys of at least 2048 bits. Additionally, be aware that PK
 
 === Signature Verification
 
-The xref:api:utils.adoc#SignatureChecker[`SignatureChecker`] library provides a unified interface for verifying signatures from different sources. It seamlessly supports:
+The xref:api:utils/cryptography.adoc#SignatureChecker[`SignatureChecker`] library provides a unified interface for verifying signatures from different sources. It seamlessly supports:
 
 * ECDSA signatures from externally owned accounts (EOAs)
 * ERC-1271 signatures from smart contract wallets like Argent and Safe Wallet
@@ -263,7 +263,7 @@ Some use cases require more powerful data structures than arrays and mappings of
 - xref:api:utils.adoc#EnumerableSet[`EnumerableSet`]: A https://en.wikipedia.org/wiki/Set_(abstract_data_type)[set] with enumeration capabilities.
 - xref:api:utils.adoc#EnumerableMap[`EnumerableMap`]: A `mapping` variant with enumeration capabilities.
 - xref:api:utils.adoc#MerkleTree[`MerkleTree`]: An on-chain https://wikipedia.org/wiki/Merkle_Tree[Merkle Tree] with helper functions.
-- xref:api:utils.adoc#Heap.sol[`Heap`]: A 
+- xref:api:utils.adoc#Heap.sol[`Heap`]: A https://en.wikipedia.org/wiki/Binary_heap[binary heap] to store elements with priority defined by a compartor function.
 
 The `Enumerable*` structures are similar to mappings in that they store and remove elements in constant time and don't allow for repeated entries, but they also support _enumeration_, which means you can easily query all stored entries both on and off-chain.
 
@@ -310,10 +310,10 @@ function push(bytes32 leaf) public /* onlyOwner */ {
 
 function _hashFn(bytes32 a, bytes32 b) internal view returns(bytes32) {
     // Custom hash function implementation
-    // Kept as an internal implementation detail to 
+    // Kept as an internal implementation detail to
     // guarantee the same function is always used
 }
----- 
+----
 
 === Using a Heap
 
@@ -461,6 +461,81 @@ await instance.multicall([
 ]);
 ----
 
+=== Low-level Calls
+
+The xref:api:utils.adoc#LowLevelCall[`LowLevelCall`] library provides low-level external calls with fixed-size return data handling, protecting against return bombing attacks where callees allocate excessive memory.
+
+The library efficiently handles return data up to 64 bytes, allowing you to ignore it entirely or extract 1-2 `bytes32` values:
+
+[source,solidity]
+----
+using LowLevelCall for address;
+
+function example(address target, bytes memory data) internal {
+    bool success;
+    bytes32 result1;
+    bytes32 result2;
+
+    // Ignore return data
+    success = target.callNoReturn(data);
+
+    // Extract single 32-byte value
+    (success, result1, ) = target.callReturn64Bytes(data);
+
+    // Extract two 32-byte values
+    (success, result1, result2) = target.callReturn64Bytes(data);
+}
+----
+
+You can also check return data size before processing:
+
+[source,solidity]
+----
+function checkReturnSize(address target, bytes memory data) internal returns (uint256 value, uint256 otherValue) {
+    (bool success, bytes32 result1, bytes32 result2) = target.callReturn64Bytes(data);
+
+    if (!success || LowLevelCall.returnDataSize() < 32) {
+        return (0, 0);
+    } else if (LowLevelCall.returnDataSize() < 64) {
+        return (uint256(result1), 0);
+    } else {
+        return (uint256(result1), uint256(result2));
+    }
+}
+----
+
+=== Memory
+
+The xref:api:utils.adoc#Memory[`Memory`] library provides functions for advanced use cases that require granular memory management. A common use case is to avoid unnecessary memory expansion costs when performing repeated operations that allocate memory in a loop. Consider the following example:
+
+[source,solidity]
+----
+function processMultipleItems(uint256[] memory items) internal {
+  for (uint256 i = 0; i < items.length; i++) {
+    bytes memory tempData = abi.encode(items[i], block.timestamp);
+    // Process tempData...
+  }
+}
+----
+
+Note that each iteration allocates new memory for `tempData`, causing the memory to expand continuously. This can be optimized by resetting the memory pointer between iterations:
+
+[source,solidity]
+----
+function processMultipleItems(uint256[] memory items) internal {
+  Memory.Pointer ptr = Memory.getFreeMemoryPointer(); // Cache pointer
+  for (uint256 i = 0; i < items.length; i++) {
+    bytes memory tempData = abi.encode(items[i], block.timestamp);
+    // Process tempData...
+    Memory.setFreeMemoryPointer(ptr); // Reset pointer for reuse
+  }
+}
+----
+
+This way, memory allocated for `tempData` in each iteration is reused, significantly reducing memory expansion costs when processing many items.
+
+IMPORTANT: Only use these functions after carefully confirming they're necessary. By default, Solidity handles memory safely. Using this library without understanding memory layout and safety may be dangerous. See the https://docs.soliditylang.org/en/v0.8.20/internals/layout_in_memory.html[memory layout] and https://docs.soliditylang.org/en/v0.8.20/assembly.html#memory-safety[memory safety] documentation for details.
+
 === Historical Block Hashes
 
 xref:api:utils.adoc#Blockhash[`Blockhash`] provides L2 protocol developers with extended access to historical block hashes beyond Ethereum's native 256-block limit. By leveraging https://eips.ethereum.org/EIPS/eip-2935[EIP-2935]'s history storage contract, the library enables access to block hashes up to 8,191 blocks in the past, making it invaluable for L2 fraud proofs and state verification systems.
@@ -486,7 +561,7 @@ The xref:api:utils.adoc#Time[`Time`] library provides helpers for manipulating t
 
 One of its key features is the `Delay` type, which represents a duration that can automatically change its value at a specified point in the future while maintaining delay guarantees. For example, when reducing a delay value (e.g., from 7 days to 1 day), the change only takes effect after the difference between the old and new delay (i.e. a 6 days) or a minimum setback period, preventing an attacker who gains admin access from immediately reducing security timeouts and executing sensitive operations. This is particularly useful for governance and security mechanisms where timelock periods need to be enforced.
 
-Consider this example for using and safely updating Delays:   
+Consider this example for using and safely updating Delays:
 [source,solidity]
 ----
 // SPDX-License-Identifier: MIT
@@ -496,7 +571,7 @@ import {Time} from "contracts/utils/types/Time.sol";
 
 contract MyDelayedContract {
     using Time for *;
-    
+
     Time.Delay private _delay;
 
     constructor() {
@@ -507,10 +582,10 @@ contract MyDelayedContract {
         // Get the current `_delay` value, respecting any pending delay changes if they've taken effect
         uint32 currentDelay = _delay.get();
         uint48 executionTime = Time.timestamp() + currentDelay;
-        
+
         // ... schedule the operation at `executionTime`
     }
-    
+
     function execute(bytes32 operationId) external {
         uint48 executionTime = getExecutionTime(operationId);
         require(executionTime > 0, "Operation not scheduled");
@@ -518,19 +593,19 @@ contract MyDelayedContract {
 
         // ... execute the operation
     }
-    
+
     // Update the delay with `Time`'s safety mechanism
     function updateDelay(uint32 newDelay) external {
         (Time.Delay updatedDelay, uint48 effect) = _delay.withUpdate(
             newDelay,    // The new delay value
             5 days       // Minimum setback if reducing the delay
         );
-        
+
         _delay = updatedDelay;
 
         // ... emit events
     }
-    
+
     // Get complete delay details including pending changes
     function getDelayDetails() external view returns (
         uint32 currentValue, // The current delay value

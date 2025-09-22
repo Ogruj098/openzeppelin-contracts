@@ -1,12 +1,15 @@
 // SPDX-License-Identifier: MIT
+// OpenZeppelin Contracts (last updated v5.4.0) (utils/cryptography/verifiers/ERC7913P256Verifier.sol)
 
 pragma solidity ^0.8.20;
 
-import {P256} from "../../../utils/cryptography/P256.sol";
+import {P256} from "../P256.sol";
 import {IERC7913SignatureVerifier} from "../../../interfaces/IERC7913.sol";
 
 /**
  * @dev ERC-7913 signature verifier that support P256 (secp256r1) keys.
+ *
+ * @custom:stateless
  */
 contract ERC7913P256Verifier is IERC7913SignatureVerifier {
     /// @inheritdoc IERC7913SignatureVerifier

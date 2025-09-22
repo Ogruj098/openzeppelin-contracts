@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: MIT
+// OpenZeppelin Contracts (last updated v5.4.0) (utils/cryptography/signers/SignerECDSA.sol)
 
 pragma solidity ^0.8.20;
 
@@ -26,6 +27,10 @@ import {ECDSA} from "../ECDSA.sol";
  */
 abstract contract SignerECDSA is AbstractSigner {
     address private _signer;
+
+    constructor(address signerAddr) {
+        _setSigner(signerAddr);
+    }
 
     /**
      * @dev Sets the signer with the address of the native signer. This function should be called during construction
