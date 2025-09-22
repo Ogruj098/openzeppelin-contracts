@@ -33,4 +33,18 @@ Changelog entries should be added to each pull request by using [Changesets](htt
 
 When opening the pull request you will be presented with a template and a series of instructions. Read through it carefully and follow all the steps. Expect a review and feedback from the maintainers afterwards.
 
+### Modern Development Workflows
+
+You can create pull requests using various modern development tools and AI-powered assistants. See our guides:
+
+- **[Quick Start Guide](docs/QUICK_START_MODERN_TOOLS.md)**: Fast reference for modern tools
+- **[Comprehensive Guide](docs/MODERN_DEVELOPMENT_WORKFLOWS.md)**: Detailed instructions for:
+  - **GitHub Copilot Chat**: AI-powered assistance directly in your IDE
+  - **IDE Integration**: VS Code, JetBrains, and other editor configurations
+  - **Agentic Coding Tools**: MCP-supported tools like Cursor, Claude, and Aider
+  - **Raycast on macOS**: Quick development workflows through command palette
+  - **CLI Tools**: GitHub CLI and automated workflow integration
+
+These tools can help streamline your contribution process while maintaining code quality and security standards.
+
 If you're looking for a good place to start, look for issues labelled ["good first issue"](https://github.com/OpenZeppelin/openzeppelin-contracts/labels/good%20first%20issue)!
